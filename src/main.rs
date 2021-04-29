@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::Read;
 use std::process::exit;
 use std::error::Error;
+use reqwest::Url;
 
 fn main() {
     print_title();
@@ -26,8 +27,8 @@ fn main() {
 
     let parsed_html = match get_body(mobile_number, password) {
         Ok(response) => Html::parse_document(&response),
-        Err(_) => {
-            println!("Can't get the body response from the lycamobile.es website");
+        Err(e) => {
+            println!("Can't get the body response from the lycamobile.es website: {}", e);
             exit(1)
         }
     };
@@ -84,8 +85,13 @@ fn get_body(mobile_number: String, password: String) -> Result<String, Box<dyn E
         ])
         .send()?;
 
-    let response = client.get("https://www.lycamobile.es/es/my-account/").send()?;
-    Ok(response.text()?)
+    let account_url = "https://www.lycamobile.es/es/my-account/";
+    let response = client.get(account_url).send()?;
+    return if response.url().eq(&Url::parse(account_url)?) {
+        Ok(response.text()?)
+    } else {
+        Err("Can't log in".into())
+    }
 }
 
 fn get_expiration_date(parsed_html: &Html) -> String {
